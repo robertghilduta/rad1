@@ -23,7 +23,7 @@ include $(top_srcdir)/Makefile.common
 DESTDIR := 
 
 AM_CPPFLAGS = $(STD_DEFINES_AND_INCLUDES) $(USB_INCLUDES) $(WITH_INCLUDES)
-AM_CXXFLAGS = -DOMNITHREAD_POSIX=1 -lusb-1.0 -ldl -lpthread
+AM_CXXFLAGS = -DOMNITHREAD_POSIX=1 -lusb-1.0 -ldl -lpthread -lbladeRF
 
 EXTRA_DIST = \
 	README \
@@ -39,19 +39,16 @@ libtransceiver_la_SOURCES = \
 	radioInterface.cpp \
 	sigProcLib.cpp \
 	Transceiver.cpp \
-	RAD1Device.cpp \
+	bladeRFDevice.cpp \
 	FactoryCalibration.cpp \
 	DummyLoad.cpp
 
 
 noinst_PROGRAMS = \
-	RAD1ping \
 	transceiver \
 	sigProcLibTest \
 	RAD1Cmd \
-	RAD1SN \
-	RAD1RxRawPowerSweep \
-	RAD1RxRawPower
+	RAD1SN
 
 noinst_HEADERS = \
         ad9862.h                        \

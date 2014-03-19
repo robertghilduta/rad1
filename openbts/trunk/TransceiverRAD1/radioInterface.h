@@ -20,7 +20,7 @@
 #include "radioDevice.h"
 
 /** samples per GSM symbol */
-#define SAMPSPERSYM 1 
+#define SAMPSPERSYM 8
 #define INCHUNK    (625)
 #define OUTCHUNK   (625)
 

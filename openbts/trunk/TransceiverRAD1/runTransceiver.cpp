@@ -17,7 +17,7 @@
 #include <stdlib.h>
 
 #include "Transceiver.h"
-#include "RAD1Device.h"
+#include "bladeRFDevice.h"
 #include "DummyLoad.h"
 
 #include <time.h>
@@ -66,7 +66,9 @@ int main(int argc, char *argv[])
   int deviceID = 0;
   if (argc>2) deviceID = atoi(argv[2]);
 
-  gFactoryCalibration.readEEPROM(deviceID);
+  LOG(EMERG) << "lol";
+  //gFactoryCalibration.readEEPROM(deviceID);
+  LOG(EMERG) << "lol";
  
 
   srandom(time(NULL));
@@ -92,10 +94,12 @@ int main(int argc, char *argv[])
   default:
 	break;
   }
+  mOversamplingRate = 8;
   //int mOversamplingRate = numARFCN/2 + numARFCN;
   //mOversamplingRate = 15; //mOversamplingRate*2;
   //if ((numARFCN > 1) && (mOversamplingRate % 2)) mOversamplingRate++;
-  RAD1Device *usrp = new RAD1Device(mOversamplingRate*1625.0e3/6.0);
+  //RAD1Device *usrp = new RAD1Device(mOversamplingRate*1625.0e3/6.0);
+  bladeRFDevice *usrp = new bladeRFDevice(8, 0);
   //DummyLoad *usrp = new DummyLoad(mOversamplingRate*1625.0e3/6.0);
   usrp->make(false, deviceID); 
 

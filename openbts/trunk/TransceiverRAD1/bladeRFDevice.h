@@ -81,7 +81,8 @@ private:
   bladeRFDevice(int sps, bool skipRx);
 
   /** Instantiate the bladeRF */
-  int open(const std::string &, bool);
+  bool make(bool skipRx, int devID);
+  int open();
 
   /** Start the bladeRF */
   bool start();
@@ -92,7 +93,7 @@ private:
   /** Set priority not supported */
   void setPriority() { return; }
 
-  enum TxWindowType getWindowType() { return TX_WINDOW_FIXED; }
+  //enum TxWindowType getWindowType() { return TX_WINDOW_FIXED; }
 
   /**
 	Read samples from the bladeRF.
@@ -125,11 +126,12 @@ private:
   bool updateAlignment(TIMESTAMP timestamp);
 
   /** Set the transmitter frequency */
-  bool setTxFreq(double wFreq);
+  bool setTxFreq(double wFreq, double wAdjFreq);
 
   /** Set the receiver frequency */
-  bool setRxFreq(double wFreq);
+  bool setRxFreq(double wFreq, double wAdjFreq);
 
+  bool setVCTCXO(unsigned int);
   /** Returns the starting write Timestamp*/
   TIMESTAMP initialWriteTimestamp(void) { return 0x20000;}
 

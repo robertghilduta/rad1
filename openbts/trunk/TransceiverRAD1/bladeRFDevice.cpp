@@ -47,6 +47,9 @@
 #endif
 
 #define LOG_TX
+#ifndef NORMAL
+#define NORMAL 1
+#endif
 using namespace std;
 
 bladeRFDevice::bladeRFDevice(int sps, bool skipRx)
@@ -62,7 +65,7 @@ bladeRFDevice::bladeRFDevice(int sps, bool skipRx)
 int bladerf_get_timestamp(struct bladerf *dev, bladerf_module mod, uint64_t *value);
 static FILE *ty;
 FILE *qw, *qw2;
-int bladeRFDevice::open(const std::string &, bool)
+int bladeRFDevice::open()
 {
     if (!ty) ty = fopen("tt", "w+");
             if (!qw)
@@ -89,7 +92,6 @@ int bladeRFDevice::open(const std::string &, bool)
 
 
   struct bladerf_rational_rate rate, actual;
-  sps = 1;
   rate.integer = (sps * 13e6) / 48;
   rate.num = (sps * 13e6) - rate.integer * 48;
   rate.den = 48;
@@ -99,7 +101,6 @@ int bladeRFDevice::open(const std::string &, bool)
       return -1;
   }
 
-  sps = 4;
   rate.integer = (sps * 13e6) / 48;
   rate.num = (sps * 13e6) - rate.integer * 48;
   rate.den = 48;
@@ -294,7 +295,6 @@ struct bladerf_superspeed_timestamp {
 
 
 int detected = 0;
-int thrilla = 0;
 #define BST_SZ (sizeof(struct bladerf_superspeed_timestamp))
 // NOTE: Assumes sequential reads
 int bladeRFDevice::readSamples(short *buf, int len, bool *overrun,
@@ -337,20 +337,20 @@ int bladeRFDevice::readSamples(short *buf, int len, bool *overrun,
             unsigned payloadSz = (512 * 2 - 8) * sizeof (uint16_t);
 
             TIMESTAMP pktTimestamp = (((uint64_t)bst->time_hi) << 32 | bst->time_lo) / 2; 
-            payloadSz /= 4;
-            //pktTimestamp /= 4;
 #ifdef LOG_TX
         //    if (pktTimestamp < 0x10000 && (pktTimestamp + 0x1fc * 2) > 0x10000)
-            if (pktTimestamp < 0x20000 && (pktTimestamp + 0x1fc * 2) > 0x20000)
+   //         if (pktTimestamp < 0x20000 && (pktTimestamp + 0x1fc * 2) > 0x20000)
 #endif
             {
+                char buf[100];
+                sprintf(buf, "LOL %x, %x\n", bst->rsvd, bst->flags);
+    //            LOG(EMERG) << buf;
                 int t, tz;
                 tz = pktTimestamp;
                 if (!detected) {
                     for (t = 0; t < 508*2; t++) {
                         if (bst->samples[t] > 300 || bst->samples[t] < -300) {
                             LOG(EMERG) << "Detected chatter at " <<  pktTimestamp;
-//                            thrilla = 10;
                             detected = 5;
                             break;
                         }
@@ -360,7 +360,7 @@ int bladeRFDevice::readSamples(short *buf, int len, bool *overrun,
                 for (t = 0; t < 508; t++) {
 //#ifdef LOG_TX
 #if 1
-                    fprintf(ty, "R %x, %d, %d\n", tz + t, bst->samples[t * 2], bst->samples[t * 2 + 1], bst->usamples[t * 2], bst->usamples[t * 2 + 1]);
+//                    fprintf(ty, "R %x, %d, %d\n", tz + t, bst->samples[t * 2], bst->samples[t * 2 + 1], bst->usamples[t * 2], bst->usamples[t * 2 + 1]);
 #else
                     fprintf(ty, "%d, %d\n", bst->samples[t * 2], bst->samples[t * 2 + 1], bst->usamples[t * 2], bst->usamples[t * 2 + 1]);
 #endif
@@ -412,8 +412,6 @@ int bladeRFDevice::readSamples(short *buf, int len, bool *overrun,
             LOG(DEBUG) << "timeStart: " << timeStart << ", timeEnd: " << timeEnd << ", pktTimestamp: " << pktTimestamp;
         }
     }
-    if (thrilla)
-        thrilla--;
 
     // copy desired data to buf
     unsigned bufStart = dataStart+(timestamp-timeStart);
@@ -444,7 +442,7 @@ int bladeRFDevice::readSamples(short *buf, int len, bool *overrun,
 struct bladerf_superspeed_timestamp leftover;
 int leftover_len;
 #define DEL   ( -6 )
-uint64_t tx_time = 0x00000;
+uint64_t tx_time = 0x20000;
 #define PK_SZ 508
 #define PK_SZ_B (PK_SZ*2)
 unsigned long long who;
@@ -485,7 +483,8 @@ int bladeRFDevice::writeSamples(short *buf, int len, bool *underrun,
         leftover.time_lo = ( tx_time + DEL ) & 0x0ffffffffll;
         leftover.time_hi = ( tx_time + DEL ) >> 32;
 #ifdef LOG_TX
-        if (tx_time <= 0x40000 && tx_time + len > 0x40000) {
+     //   if (tx_time <= 0x40000 && tx_time + len > 0x40000) {
+        {
             for (i = 0; i < 508; i++) {
                 fprintf(ty, "T %x) %x, %x\n", tx_time/2 + i, leftover.samples[i * 2], leftover.samples[i * 2 + 1]);
             }
@@ -504,10 +503,7 @@ int bladeRFDevice::writeSamples(short *buf, int len, bool *underrun,
         tx_time += PK_SZ * 2;
         leftover.rsvd = 0xdeadbeef;
         leftover.flags = -1;
-        if (!first)
-            bladerf_sync_tx(bdev, (void*)&leftover, 512, NULL, NULL);
-        else
-            first = 0;
+        bladerf_sync_tx(bdev, (void*)&leftover, 512, NULL, NULL);
         leftover_len = 0;
     }
 
@@ -528,7 +524,8 @@ int bladeRFDevice::writeSamples(short *buf, int len, bool *underrun,
         }
 
 #if 1
-        if (tx_time == 0x40000) {
+    //    if (tx_time == 0x40000) {
+        {
             for (i = 0; i < 508; i++) {
                 fprintf(ty, "T %x) %x, %x\n", tx_time/2 + i, leftover.samples[i * 2], leftover.samples[i * 2 + 1]);
             }
@@ -537,10 +534,7 @@ int bladeRFDevice::writeSamples(short *buf, int len, bool *underrun,
         tx_time += PK_SZ * 2;
         leftover.rsvd = 0xdeadbeef;
         leftover.flags = -1;
-        if (!first)
-            bladerf_sync_tx(bdev, (void*)&leftover, 512, NULL, NULL);
-        else
-            first = 0;
+        bladerf_sync_tx(bdev, (void*)&leftover, 512, NULL, NULL);
     }
     memcpy(&leftover.samples, buf, 2 * sizeof(short) * (len));
     leftover_len = len;
@@ -557,18 +551,22 @@ bool bladeRFDevice::updateAlignment(TIMESTAMP timestamp)
   return true;
 }
 
-bool bladeRFDevice::setTxFreq(double wFreq) {
+bool bladeRFDevice::setTxFreq(double wFreq, double wAdjFreq) {
     LOG(EMERG) << "set TX freq: " << wFreq << std::endl;
     bladerf_set_frequency(bdev, BLADERF_MODULE_TX, wFreq);
     return true;
 };
-bool bladeRFDevice::setRxFreq(double wFreq) {
+bool bladeRFDevice::setRxFreq(double wFreq, double wAdjFreq) {
     LOG(EMERG) << "set RX freq: " << wFreq << std::endl;
     bladerf_set_frequency(bdev, BLADERF_MODULE_RX, wFreq);
     return true;
 };
+bool bladeRFDevice::setVCTCXO(unsigned int) {
+    return true;
+}
 
-RadioDevice *RadioDevice::make(int sps, bool skipRx)
+bool bladeRFDevice::make(bool skipRx, int devID)
 {
-	return new bladeRFDevice(sps, skipRx);
+    open();
+    return true;
 }
